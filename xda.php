@@ -65,8 +65,14 @@ function addPageToRSSFeed ($html, RSSFeed $rssFeed) {
 
 
 function getRealThreadURL ($threadID) {
-	$headers=get_headers('http://forum.xda-developers.com/showthread.php?t='.$threadID.'&page=999999999999999',1);
-	return 'http://forum.xda-developers.com'.$headers['Location'];
+	$lastPageURL='http://forum.xda-developers.com/showthread.php?t='.$threadID.'&page=999999999999999';
+	$headers=get_headers($lastPageURL,1);
+	if ($headers[0]=='HTTP/1.1 301 Moved Permanently') {
+		return 'http://forum.xda-developers.com'.$headers['Location'];
+	} else {
+		# For the old threads - it doesn't actually redirect
+		return $lastPageURL;
+	}
 }
 
 # Get the page's HTML for a given URL
@@ -75,11 +81,11 @@ function getPageHTML ($url) {
 		$ch = curl_init($url);
 		curl_setopt($ch, CURLOPT_HEADER, false);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		#curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+		#curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);	# 000 Webhost doesn't allow CURLOPT_FOLLOWLOCATION
 		curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
 		return curl_exec($ch);
 	} catch (Exception $e) {
-		try{curl_close($ch);} catch (Exception $e) {}
+		try {curl_close($ch);} catch (Exception $e) {}
 	}
 }
 
@@ -93,7 +99,8 @@ function getLastNPageURLs ($html, $n=2) {
 	$xpath = new DOMXPath($dom);
 	$links=array();
 	foreach ($xpath->query('/descendant::div[@class="pagenav"][1]/a[contains(@class,"pagenav-pagelink")][position()>last()-'.$n.']/@href') as $pageLink) {
-		$links[]='http://forum.xda-developers.com'.$pageLink->nodeValue;
+		# Old thread page links include the '/' prefix, new don't, replace '//' with '/'
+		$links[]=str_replace('http://forum.xda-developers.com//', 'http://forum.xda-developers.com/', 'http://forum.xda-developers.com/'.$pageLink->nodeValue);
 	}
 	return $links;
 }
@@ -118,7 +125,6 @@ $rssFeed->setLastBuildDate(new DateTime());
 # Get the last page and work out the last 2 pages' URLs
 $html=getPageHTML(getRealThreadURL($threadID));	# 000 Webhost doesn't allow CURLOPT_FOLLOWLOCATION so I need to do this...
 $links=getLastNPageURLs($html,2);
-
 #require_once('html.php');	#### DEBUG ####
 #$links=array(0);	#### DEBUG ####
 
