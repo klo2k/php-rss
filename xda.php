@@ -50,7 +50,7 @@ function addPageToRSSFeed ($html, RSSFeed $rssFeed) {
 			foreach ($xpath->query('.//div[@class="purchad"]', $postDiv) as $postAd) {
 				$postAd->parentNode->removeChild($postAd);
 			}
-			$rssItem->description=trim($dom->saveXML($postMsgDiv));
+			$rssItem->description=trim(str_replace('&#13;',"\r",$dom->saveXML($postMsgDiv)));
 			break;
 		}
 		# Publication Date
