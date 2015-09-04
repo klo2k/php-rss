@@ -16,6 +16,18 @@ function getXDADate ($xdaDateStr) {
 	return $dt;
 }
 
+# Fix-up the HTML of posts
+function cleanPostMessageHTML ($html) {
+	return
+		trim(
+			# Emoticon URL
+			str_replace('<img src="//','<img src="http://',	
+				# New line character
+				str_replace('&#13;',"\r", $html)
+			)
+		);
+}
+
 # Parase a page and add the posts to the RSS Feed
 function addPageToRSSFeed ($html, RSSFeed $rssFeed) {
 	$dom=new DOMDocument();
@@ -24,16 +36,22 @@ function addPageToRSSFeed ($html, RSSFeed $rssFeed) {
 
 	# Get the post wrapper divs
 	$postDivs = $xpath->query('/descendant::div[@id="posts"]/div[starts-with(@id,"edit") and @class="postbit-wrapper "]');
+	
+	# Thread URL
+	$pageURL = current(iterator_to_array($xpath->query('/html/head/link[@rel="canonical"]/@href')))->nodeValue;
 
 	# Get the post element divs
 	foreach ($postDivs as $postDiv) {
 		$rssItem = new RSSItem();
 		# Title (author)
+		$rssItem->title='[Post]';	// Default to "[Post]" on first post
 		foreach ($xpath->query('.//a[starts-with(@class, "bigfusername")]', $postDiv) as $postAuthorA) {
 			$rssItem->title=trim($postAuthorA->nodeValue);
 			break;
 		}
 		# Link, GUID
+		$rssItem->link=$pageURL;	// Default to page URL on first post
+		$rssItem->guid=$rssItem->link;
 		foreach ($xpath->query('.//a[@class="postCount"]/@href', $postDiv) as $postLink) {
 			# Strip the 's' parameter out since it changes every so often....
 			$parsedURL = parse_url($postLink->nodeValue);
@@ -50,10 +68,12 @@ function addPageToRSSFeed ($html, RSSFeed $rssFeed) {
 			foreach ($xpath->query('.//div[@class="purchad"]', $postDiv) as $postAd) {
 				$postAd->parentNode->removeChild($postAd);
 			}
-			$rssItem->description=trim(str_replace('&#13;',"\r",$dom->saveXML($postMsgDiv)));
+			$rssItem->description=cleanPostMessageHTML($dom->saveXML($postMsgDiv));
 			break;
 		}
 		# Publication Date
+		$rssItem->setPubDate(new DateTime('1900-01-01'));	// Default to 1st JAN 1900 on first post... oh well...
+		$rssFeed->setLastBuildDate($rssItem->getPubDate());
 		foreach ($xpath->query('.//span[@class="time"]', $postDiv) as $postDateSpan) {
 			$rssItem->setPubDate(getXDADate(trim($postDateSpan->nodeValue)));
 			$rssFeed->setLastBuildDate($rssItem->getPubDate());	# Set the feed's lastBuildDate to the last post's date
