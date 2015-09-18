@@ -28,7 +28,7 @@ function cleanPostMessageHTML ($html) {
 		);
 }
 
-# Parase a page and add the posts to the RSS Feed
+# Parse a page and add the posts to the RSS Feed
 function addPageToRSSFeed ($html, RSSFeed $rssFeed) {
 	$dom=new DOMDocument();
 	@$dom->loadHTML($html);
@@ -83,10 +83,45 @@ function addPageToRSSFeed ($html, RSSFeed $rssFeed) {
 	}
 }
 
+# From http://stackoverflow.com/questions/6368574/how-to-get-the-functionality-of-http-parse-headers-without-pecl#answer-21227489
+function _http_parse_headers ($raw) {
+	$res = array();
+	foreach (explode("\n", $raw) as $h) {
+		$h = explode(':', $h, 2);
+		$first = trim($h[0]);
+		$last = @trim($h[1]);
+		if (array_key_exists($first, $res)) {
+			$res[$first] .= ", " . $last;
+		} else if (isset($h[1])) {
+			$res[$first] = $last;
+		} else {
+			$res[] = $first;
+		}
+	}
+	return $res;
+}
+
+# Same as get_headers($lastPageURL) - except we're injecting a cookie value
+function _get_headers ($url) {
+	try {
+		$ch = curl_init($url);
+		curl_setopt($ch, CURLOPT_HEADER, true);
+		curl_setopt($ch, CURLOPT_NOBODY, true);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		# Emulate a real request - if "visited=1" cookie value is not present, you'll get HTTP 500
+		curl_setopt($ch, CURLOPT_USERAGENT,'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.0');
+		curl_setopt($ch, CURLOPT_COOKIE, "bblastvisit=".time()."; bblastactivity=0; visited=1; xda_adtest=0");
+		$headers = _http_parse_headers(curl_exec($ch));
+		curl_close($ch);
+		return $headers;
+	} catch (Exception $e) {
+		try {curl_close($ch);} catch (Exception $e) {}
+	}
+}
 
 function getRealThreadURL ($threadID) {
 	$lastPageURL='http://forum.xda-developers.com/showthread.php?t='.$threadID.'&page=999999999999999';
-	$headers=get_headers($lastPageURL,1);
+	$headers=_get_headers($lastPageURL);	# We can't use get_headers($lastPageURL,1); anymore - we need to inject the visited=1 value
 	if ($headers[0]=='HTTP/1.1 301 Moved Permanently') {
 		return 'http://forum.xda-developers.com'.$headers['Location'];
 	} else {
@@ -102,8 +137,13 @@ function getPageHTML ($url) {
 		curl_setopt($ch, CURLOPT_HEADER, false);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		#curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);	# 000 Webhost doesn't allow CURLOPT_FOLLOWLOCATION
-		curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
-		return curl_exec($ch);
+		#curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
+		# Emulate a real request - if "visited=1" cookie value is not present, you'll get HTTP 500
+		curl_setopt($ch, CURLOPT_USERAGENT,'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.0');
+		curl_setopt($ch, CURLOPT_COOKIE, "bblastvisit=".time()."; bblastactivity=0; visited=1; xda_adtest=0");
+		$html = curl_exec($ch);
+		curl_close($ch);
+		return $html;
 	} catch (Exception $e) {
 		try {curl_close($ch);} catch (Exception $e) {}
 	}
