@@ -3,6 +3,7 @@ class RSSItem {
 	public $title;
 	public $link;
 	public $guid;
+	public $author;
 	public $enclosureURL;
 	public $enclosureType;
 	private $pubDate;		# The parsed date string in rfc-2822
@@ -23,6 +24,10 @@ class RSSItem {
 	<title><![CDATA['.self::escapeCDataString($this->title).']]></title>
 	<link>'.htmlspecialchars($this->link).'</link>
 	<guid>'.htmlspecialchars($this->guid).'</guid>';
+		if (!empty($this->author)) {
+			$src .= '
+	<author><![CDATA['.self::escapeCDataString($this->author).']]></author>';
+		}
 		if (!empty($this->enclosure_url)) {
 			$src.='
 	<enclosure url="'.urlencode($rssItem->enclosureURL).'" type="'.htmlspecialchars($rssItems->enclosureType).'"/>';

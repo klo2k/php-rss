@@ -34,10 +34,10 @@ class RSSFeed {
 		<link>'.htmlspecialchars($this->link).'</link>
 		<description>'.htmlspecialchars($this->description).'</description>
 		<lastBuildDate>'.$this->lastBuildDate->format(DateTime::RSS).'</lastBuildDate>';
+		# <item>-s
 		for ($i=0; $i<sizeof($this->rssItems); $i++) {
 			$src.=$this->rssItems[$i]->getXMLSource();
 		}
-
 		$src.='
 	</channel>
 </rss>
