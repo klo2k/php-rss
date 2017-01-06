@@ -19,7 +19,7 @@ function getXDADate ($xdaDateStr) {
 # Fix-up the HTML of posts
 function cleanPostMessageHTML ($html) {
 	# Emoticon URL
-	$html = str_replace('<img src="//','<img src="http://',	$html);
+	$html = str_replace('<img src="//','<img src="https://', $html);
 	# New line character
 	$html = str_replace('&#13;',"\r", $html);
 	# Blockquote styling
@@ -64,7 +64,7 @@ function addPageToRSSFeed ($html, RSSFeed $rssFeed) {
 			$queryStr = $parsedURL['query'];
 			parse_str($queryStr, $queryParams);
 			unset($queryParams['s']);
-			$rssItem->link='http://forum.xda-developers.com/'.$parsedURL['path'].'?'.http_build_query($queryParams);
+			$rssItem->link='https://forum.xda-developers.com/'.$parsedURL['path'].'?'.http_build_query($queryParams);
 			$rssItem->guid=$rssItem->link;
 			break;
 		}
@@ -126,10 +126,10 @@ function _get_headers ($url) {
 }
 
 function getRealThreadURL ($threadID) {
-	$lastPageURL='http://forum.xda-developers.com/showthread.php?t='.$threadID.'&page=999999999999999';
+	$lastPageURL='https://forum.xda-developers.com/showthread.php?t='.$threadID.'&page=999999999999999';
 	$headers=_get_headers($lastPageURL);	# We can't use get_headers($lastPageURL,1); anymore - we need to inject the visited=1 value
 	if ($headers[0]=='HTTP/1.1 301 Moved Permanently') {
-		return 'http://forum.xda-developers.com'.$headers['Location'];
+		return 'https://forum.xda-developers.com'.$headers['Location'];
 	} else {
 		# For the old threads - it doesn't actually redirect
 		return $lastPageURL;
@@ -148,6 +148,8 @@ function getPageHTML ($url) {
 		curl_setopt($ch, CURLOPT_USERAGENT,'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.0');
 		curl_setopt($ch, CURLOPT_COOKIE, "bblastvisit=".time()."; bblastactivity=0; visited=1; xda_adtest=0");
 		$html = curl_exec($ch);
+		if ($html === false)
+			throw new Exception (curl_error($ch), curl_errno($ch));
 		curl_close($ch);
 		return $html;
 	} catch (Exception $e) {
@@ -166,7 +168,7 @@ function getLastNPageURLs ($html, $n=2) {
 	$links=array();
 	foreach ($xpath->query('/descendant::div[@class="pagenav"][1]/a[contains(@class,"pagenav-pagelink")][position()>last()-'.$n.']/@href') as $pageLink) {
 		# Old thread page links include the '/' prefix, new don't, replace '//' with '/'
-		$links[]=str_replace('http://forum.xda-developers.com//', 'http://forum.xda-developers.com/', 'http://forum.xda-developers.com/'.$pageLink->nodeValue);
+		$links[]=str_replace('https://forum.xda-developers.com//', 'https://forum.xda-developers.com/', 'https://forum.xda-developers.com/'.$pageLink->nodeValue);
 	}
 	return $links;
 }
@@ -185,7 +187,7 @@ if (!is_numeric($threadID)) {
 }
 
 
-$rssFeed=new RSSFeed('XDA Thread RSS', 'http://forum.xda-developers.com/showthread.php?t='.$threadID, 'XDA Thread RSS');
+$rssFeed=new RSSFeed('XDA Thread RSS', 'https://forum.xda-developers.com/showthread.php?t='.$threadID, 'XDA Thread RSS');
 $rssFeed->setLastBuildDate(new DateTime());
 
 # Get the last page and work out the last 2 pages' URLs
